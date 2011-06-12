@@ -17,7 +17,9 @@ public class UbwException extends RuntimeException {
 		NEED_COMMA_NEXT("!5"),
 		INVALID_PARAMETER_VALUE("!6"),
 		EXTRA_PARAMETER("!7"),
-		UNKNOWN_COMMAND("!8");
+		UNKNOWN_COMMAND("!8"), 
+		COMM_ERROR("CE"), 
+		RESPONSE_ERROR("RE");
 
 		private String stringValue;
 		private ErrorCode(String stringValue) {
@@ -40,6 +42,10 @@ public class UbwException extends RuntimeException {
 	public UbwException(String message) {
 		super(message.substring(message.indexOf(' ') + 1));
 		errorCode = ErrorCode.fromStringValue(message.substring(0, message.indexOf(' ')));
+	}
+	public UbwException(String message, Throwable t, ErrorCode ec) {
+		super(message, t);
+		errorCode = ec;
 	}
 	public ErrorCode getErrorCode() {
 		return errorCode;

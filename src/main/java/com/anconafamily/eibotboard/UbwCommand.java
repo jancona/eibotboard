@@ -85,6 +85,52 @@ public interface UbwCommand {
 	 */
 	void pinOutput(Port port, int pin, boolean value);
 	
+	/**
+	 * 
+	 * @param parameter an unsigned 8 bit value, representing the parameter number you wish to change.
+	 * <table>
+	 * <tr><th>Parameter</th><th>Value</th><th>Meaning</th></tr>
+	 * <tr><td>1</td><td>0 or 1</td><td>0 = Turn off "OK" packets<br>1 = Turn on "OK" packets (default)</td></tr>
+	 * </table>
+	 * @param value a value who's meaning depends upon the <code>parameter<code> number chosen
+	 */
+	void configure(int parameter, int value);
+	
+	/**
+	 * turn any pin into an RC servo output, if that pin is already configured as a digital output.
+	 * @param port the port to set
+	 * @param pin a number between and including 0 to 7. It indicates which pin in the port for which you want 
+	 * to set the state. Note that some pins do not come out of the chip (RA6, RA7, RC3, RC4 and RC5), and some 
+	 * pins are not accessible via headers on the SparkFun version of UBW (RC0, RC1, RC2). You can still set RC 
+	 * outputs on those pins, but the non-existent ones will just be skipped by the RC code, and if you set RC 
+	 * outputs on RC0, RC1 or RC2, you may see interesting results (since RC0 and RC1 have LEDs on them).
+	 * @param value  a value between 0 and 11890. A <code>Value</code> of 0 (zero) will turn the RC output (for that pin) 
+	 * completely off. A <code>Value</code> of 1 will cause a 1ms high pulse on the pin. A <code>Value</code> of 11890 
+	 * will cause a 2ms high pulse on the pin. Any <code>Value</code> in-between 1 and 11890 will cause a high pulse 
+	 * whose duration is proportionally between 1ms and 2ms. These pulses repeat every 19ms.
+	 */
+	void rcServoOutput(Port port, int pin, int value);
+	
+	/**
+	 * 
+	 * @param init
+	 * @param waitMask
+	 * @param waitDelay
+	 * @param strobeMask
+	 * @param strobeDelay
+	 */
+	void bulkConfigure(int init, int waitMask, int waitDelay, int strobeMask, int strobeDelay);
+	/**
+	 * 
+	 * @param byteStream
+	 */
+	void bulkOutput(byte[] byteStream);
+	/**
+	 * 
+	 * @param hexBytes
+	 */
+	void bulkStream(byte[] byteStream);
+	
 	enum TimerMode {
 		DIGITAL(0), 
 		ANALOG(1);
