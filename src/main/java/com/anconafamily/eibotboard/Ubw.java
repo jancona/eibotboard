@@ -25,6 +25,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
+import java.util.Enumeration;
+import java.util.HashSet;
 
 public class Ubw implements UbwCommand {
 	private static final Charset ASCII = Charset.forName("US-ASCII");
@@ -33,36 +35,54 @@ public class Ubw implements UbwCommand {
 	private BufferedOutputStream out;
 	private TimerListener timerListener;
 
+	public Ubw() {
+        Enumeration thePorts = CommPortIdentifier.getPortIdentifiers();
+        while (thePorts.hasMoreElements()) {
+            CommPortIdentifier com = (CommPortIdentifier) thePorts.nextElement();
+            if (com.getPortType() == CommPortIdentifier.PORT_SERIAL) {
+            	try {
+            		connect(com);
+        		} catch (Exception e) {
+        			throw new UbwException("Error opening port: " + com.getName(), e, UbwException.ErrorCode.COMM_ERROR);
+        		}
+            }
+        }
+        if (serialPort == null)
+        	throw new UbwException("No serial port found to open", UbwException.ErrorCode.COMM_ERROR);
+	}
 	public Ubw(String port) {
 		try {
-			connect(port);
+			connect(CommPortIdentifier.getPortIdentifier(port));
+		} catch (UbwException e) {
+			throw e;
 		} catch (Exception e) {
-			throw new UbwException("Error opening port", e, UbwException.ErrorCode.COMM_ERROR);
+			throw new UbwException("Error opening port: " + port, e, UbwException.ErrorCode.COMM_ERROR);
 		}
 	}
 
-	private void connect(String portName) throws NoSuchPortException,
+	private void connect(CommPortIdentifier portIdentifier) throws NoSuchPortException,
 			PortInUseException, UnsupportedCommOperationException, IOException {
-		CommPortIdentifier portIdentifier = CommPortIdentifier
-				.getPortIdentifier(portName);
-		if (portIdentifier.isCurrentlyOwned()) {
-			System.out.println("Error: Port is currently in use");
+		CommPort commPort = portIdentifier.open(this.getClass().getName(), 2000);
+		if (commPort instanceof SerialPort) {
+			serialPort = (SerialPort) commPort;
+			serialPort.setSerialPortParams(57600, SerialPort.DATABITS_8,
+					SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
+
+			in = new BufferedReader(new InputStreamReader(serialPort.getInputStream()));
+			out = new BufferedOutputStream(serialPort.getOutputStream());
 		} else {
-			CommPort commPort = portIdentifier.open(this.getClass().getName(),
-					2000);
-
-			if (commPort instanceof SerialPort) {
-				serialPort = (SerialPort) commPort;
-				serialPort.setSerialPortParams(57600, SerialPort.DATABITS_8,
-						SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
-
-				in = new BufferedReader(new InputStreamReader(serialPort.getInputStream()));
-				out = new BufferedOutputStream(serialPort.getOutputStream());
-			} else {
-				System.out
-						.println("Error: Only serial ports are handled by this example.");
-			}
+			throw new UbwException("Port " + portIdentifier.getName() + " is not a serial port", UbwException.ErrorCode.COMM_ERROR);
 		}
+	}
+	
+	public void close() {
+		try {
+			in.close();
+		} catch (IOException ex) {}
+		try {
+			out.close();
+		} catch (IOException ex) {}
+		serialPort.close();
 	}
 
 	@Override

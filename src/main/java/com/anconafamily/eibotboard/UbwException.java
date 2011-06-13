@@ -13,6 +13,7 @@
 // limitations under the License.
 package com.anconafamily.eibotboard;
 
+
 /**
  * Exception that wraps the returned error status from the UBW/EBB
  * 
@@ -58,6 +59,10 @@ public class UbwException extends RuntimeException {
 	}
 	public UbwException(String message, Throwable t, ErrorCode ec) {
 		super(message, t);
+		errorCode = ec;
+	}
+	public UbwException(String message, ErrorCode ec) {
+		super(message);
 		errorCode = ec;
 	}
 	public ErrorCode getErrorCode() {
