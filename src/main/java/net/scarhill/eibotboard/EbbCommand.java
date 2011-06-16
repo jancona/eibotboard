@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package com.anconafamily.eibotboard;
+package net.scarhill.eibotboard;
 
 public interface EbbCommand extends UbwCommand {
 	/**
@@ -195,7 +195,7 @@ public interface EbbCommand extends UbwCommand {
 	 * function on RB0. On by default. For v1.1 boards, it uses RB2 instead.
 	 * (new in v2.0)
 	 */
-	void stepperModeConfigure(int value1, int value2);
+	void servoModeConfigure(int value1, int value2);
 
 	/**
 	 * a generic RC servo output command. It allows you to control the RC servo

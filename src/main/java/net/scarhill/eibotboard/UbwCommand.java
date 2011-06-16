@@ -11,7 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package com.anconafamily.eibotboard;
+package net.scarhill.eibotboard;
+
 
 public interface UbwCommand {
 	/**
@@ -156,9 +157,18 @@ public interface UbwCommand {
 		public int intValue() {
 			return intValue;
 		}
+        public static TimerMode fromChar(char c) {
+            switch (c) {
+            case 'I':
+                return DIGITAL;
+            case 'A':
+                return ANALOG;
+            }
+            return null;
+        }
 	}
 	interface TimerListener {
-		void timerResponse(int value);
+		void timerResponse(TimerMode mode, int... value);
 	}
 	enum Port {A, B, C}
 	enum PinDirection {

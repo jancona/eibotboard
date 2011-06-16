@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package com.anconafamily.eibotboard;
+package net.scarhill.eibotboard;
 
 public class Ebb extends Ubw implements EbbCommand {
 
@@ -145,13 +145,13 @@ public class Ebb extends Ubw implements EbbCommand {
 		readResponse();
 	}
 
-	@Override
-	public void stepperModeConfigure(int value1, int value2) {
-		validateByte(value1);
-		validateRange(value2, 0, 65535);
-		execute("SC," + value1 + "," + value2);
-		readResponse();
-	}
+    @Override
+    public void servoModeConfigure(int value1, int value2) {
+        validateByte(value1);
+        validateRange(value2, 0, 65535);
+        execute("SC," + value1 + "," + value2);
+        readResponse();
+    }
 
 	@Override
 	public void rcServoOutput(int channel, int duration, int output_pin, int rate) {

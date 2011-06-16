@@ -11,28 +11,34 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package com.anconafamily.eibotboard;
+package net.scarhill.eibotboard;
 
 import gnu.io.CommPort;
 import gnu.io.CommPortIdentifier;
 import gnu.io.NoSuchPortException;
 import gnu.io.PortInUseException;
 import gnu.io.SerialPort;
+import gnu.io.SerialPortEvent;
+import gnu.io.SerialPortEventListener;
 import gnu.io.UnsupportedCommOperationException;
 
 import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.Enumeration;
-import java.util.HashSet;
+import java.util.TooManyListenersException;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+
+import net.scarhill.eibotboard.UbwException.ErrorCode;
+
 
 public class Ubw implements UbwCommand {
 	private static final Charset ASCII = Charset.forName("US-ASCII");
 	private SerialPort serialPort = null;
-	private BufferedReader in;
 	private BufferedOutputStream out;
+	private SerialReader reader;
 	private TimerListener timerListener;
 
 	public Ubw() {
@@ -61,23 +67,27 @@ public class Ubw implements UbwCommand {
 	}
 
 	private void connect(CommPortIdentifier portIdentifier) throws NoSuchPortException,
-			PortInUseException, UnsupportedCommOperationException, IOException {
+			PortInUseException, UnsupportedCommOperationException, IOException, TooManyListenersException {
 		CommPort commPort = portIdentifier.open(this.getClass().getName(), 2000);
 		if (commPort instanceof SerialPort) {
 			serialPort = (SerialPort) commPort;
-			serialPort.setSerialPortParams(57600, SerialPort.DATABITS_8,
+			serialPort.setSerialPortParams(9600, SerialPort.DATABITS_8,
 					SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
-
-			in = new BufferedReader(new InputStreamReader(serialPort.getInputStream()));
+			reader = new SerialReader(new InputStreamReader(serialPort.getInputStream()));
+			serialPort.addEventListener(reader);
+            serialPort.notifyOnDataAvailable(true);
 			out = new BufferedOutputStream(serialPort.getOutputStream());
+			reset();
 		} else {
 			throw new UbwException("Port " + portIdentifier.getName() + " is not a serial port", UbwException.ErrorCode.COMM_ERROR);
 		}
 	}
 	
 	public void close() {
+        serialPort.notifyOnDataAvailable(false);
+        serialPort.removeEventListener();
 		try {
-			in.close();
+			reader.close();
 		} catch (IOException ex) {}
 		try {
 			out.close();
@@ -108,7 +118,10 @@ public class Ubw implements UbwCommand {
 	public int[] inputState() {
 		execute("I");
 		String s = readResponse();
-		try {
+		return processState(s);
+	}
+    private int[] processState(String s) {
+        try {
 			String[] r = s.split(",");
 			int[] response = new int[3];
 			response[0] = Integer.parseInt(r[1]);
@@ -118,7 +131,7 @@ public class Ubw implements UbwCommand {
 		} catch (RuntimeException e) {
 			throw new UbwException("Exception parsing response: '" + s + "'", e, UbwException.ErrorCode.RESPONSE_ERROR);
 		}
-	}
+    }
 
 	@Override
 	public String version() {
@@ -135,9 +148,13 @@ public class Ubw implements UbwCommand {
 	@Override
 	public void timerReadInputs(int timeBetweenPacketsInMilliseconds,
 			TimerMode mode, TimerListener listener) {
-		timerListener = listener;
 		validateRange(timeBetweenPacketsInMilliseconds, 0, 30000);
-		// TODO: Finish this 
+		if (timeBetweenPacketsInMilliseconds > 0) {
+	        timerListener = listener;
+		} else {
+		    timerListener = null;
+		}
+        readResponse();
 	}
 
 	@Override
@@ -238,18 +255,16 @@ public class Ubw implements UbwCommand {
 	}
 	protected void execute(String command) {
 		try {
+		    System.out.println(command);
 			out.write(command.getBytes(Charset.forName("US-ASCII")));
 			out.write(13);
+			out.flush();
 		} catch (IOException e) {
 			throw new UbwException("Exception writing command '" + command + "' to device", e, UbwException.ErrorCode.COMM_ERROR);
 		}
 	}
 	protected String readResponse() {
-		try {
-			return in.readLine();
-		} catch (IOException e) {
-			throw new UbwException("Exception reading response from device", e, UbwException.ErrorCode.COMM_ERROR);
-		}
+	    return reader.getLastLine();
 	}
 
 	static final char[] HEXES = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
@@ -264,4 +279,57 @@ public class Ubw implements UbwCommand {
 		}
 		return hex.toString();
 	}
+    public class SerialReader implements SerialPortEventListener {
+        private InputStreamReader in;
+        private StringBuilder builder = new StringBuilder();
+        private BlockingQueue<String> lines = new LinkedBlockingQueue<String>();
+        
+        public SerialReader (InputStreamReader in) {
+            this.in = in;
+        }
+        public void close() throws IOException {
+            in.close();
+        }
+        public String getLastLine() {
+            String line;
+            try {
+                line = lines.take();
+            } catch (InterruptedException e) {
+                throw new UbwException("Exception receiving data", e, ErrorCode.COMM_ERROR);
+            }
+            if (line.startsWith("!") && line.length() >= 2)
+                throw new UbwException("Error: " + line.substring(2), ErrorCode.valueOf(line.substring(0,2)));
+            return line;
+        }
+
+        public void serialEvent(SerialPortEvent event) {
+            if (event.getEventType() == SerialPortEvent.DATA_AVAILABLE) {
+                try {
+                    int c = 0;
+                    while (in.ready() && (c = in.read()) > -1) {
+                        if (c == '\n' || c == '\r') {
+                            processLine(builder.toString());
+                            builder.setLength(0);
+                            in.read();
+                        } else {
+                            builder.append((char)c);
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new UbwException("Exception receiving data", e, ErrorCode.COMM_ERROR);
+                }
+            }
+        }
+
+        private void processLine(String string) {
+            System.out.println("line=" + string);
+            char start = string.substring(0, 1).toUpperCase().charAt(0);
+            if (timerListener != null && (start == 'I' || start == 'A')) {
+                timerListener.timerResponse(TimerMode.fromChar(start), processState(string));
+            }
+            lines.add(string);
+        }
+
+    }
+
 }
