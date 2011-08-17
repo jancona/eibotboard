@@ -154,6 +154,7 @@ public class Ubw implements UbwCommand {
 		} else {
 		    timerListener = null;
 		}
+		execute("T," + timeBetweenPacketsInMilliseconds + "," + mode.intValue());
         readResponse();
 	}
 

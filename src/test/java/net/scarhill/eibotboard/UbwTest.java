@@ -13,11 +13,42 @@
 // limitations under the License.
 package net.scarhill.eibotboard;
 
+import net.scarhill.eibotboard.UbwCommand.TimerListener;
+import net.scarhill.eibotboard.UbwCommand.TimerMode;
+
+import static org.junit.Assert.assertTrue;
+import org.junit.Test;
+
 
 /**
  * @author jancona
  *
  */
 public class UbwTest {
+    private int count = 0;
+    @Test
+    public void testTimerReadInputs() throws InterruptedException {
+        count = 0;
+        TimerListener listener = new TimerListener() {
+            @Override
+            public void timerResponse(TimerMode mode, int... value) {
+                System.out.println("mode: " + mode + ", values: ");
+                for (int v : value) {
+                    System.out.print(v + " ");
+                }
+                System.out.println();
+                count++;
+            }
+            
+        };
+        
+        Ebb ebb = new Ebb("/dev/tty.usbmodemfa131");
+        ebb.timerReadInputs(1000, TimerMode.DIGITAL, listener);
+        Thread.sleep(5500);
+        assertTrue(count > 5);
+        ebb.timerReadInputs(0, TimerMode.DIGITAL, null);
+        
+        ebb.close();
+    }
 
 }

@@ -40,14 +40,15 @@ public class EbbTest {
         // full steps
         ebb.enableMotor(5, 0);
         // one revolution in 1 sec
-        ebb.stepperMotorMove(1000, 200, 0);
-        Thread.sleep(1000l);
+//        ebb.stepperMotorMove(1000, 200, 0);
+//        Thread.sleep(1000l);
         // reverse one revolution
-        ebb.stepperMotorMove(1000, -200, 0);
-        Thread.sleep(1000l);
+//        ebb.stepperMotorMove(1000, -200, 0);
+//        Thread.sleep(1000l);
         // ten revolutions
-        ebb.stepperMotorMove(5000, 2000, 0);
-        Thread.sleep(10000l);
+        int delay = (int)30.0 * 1000;
+        ebb.stepperMotorMove(delay, (int)60.0 * 200, 0);
+        Thread.sleep(delay);
         ebb.enableMotor(0, 0);
         ebb.close();
     }
